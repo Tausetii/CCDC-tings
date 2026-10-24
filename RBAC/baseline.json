@@ -1,0 +1,16 @@
+{
+  "allowed_uid0": ["root"],
+  "allowed_users": [],
+  "privileged_groups": [
+    "sudo",
+    "wheel",
+    "admin",
+    "docker",
+    "lxd",
+    "libvirt",
+    "disk",
+    "shadow"
+  ],
+  "allowed_privileged_users": ["root"],
+  "allowed_sudo_patterns": []
+}
