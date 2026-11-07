@@ -7,7 +7,6 @@
 [CmdletBinding(SupportsShouldProcess, ConfirmImpact='High')]
 param(
     [string[]]$ExcludeUsers = @('krbtgt'),
-    [string]$OutFile = "C:\Secure\pwreset_$(Get-Date -Format yyyyMMdd_HHmmss).txt",
     [switch]$IncludeSPNAccounts,     # service accounts: reset only if you know what depends on them
     [switch]$ForceChangeAtLogon
 )
@@ -101,15 +100,7 @@ $final = foreach ($sam in $targets.Keys) {
 Write-Host "`nAccounts to reset:" -ForegroundColor Cyan
 $final | Format-Table -AutoSize
 
-# --- 3. Prepare secure output file ---
-$dir = Split-Path $OutFile
-if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null }
-if (-not $WhatIfPreference) {
-    New-Item -ItemType File -Path $OutFile -Force | Out-Null
-    icacls $dir /inheritance:r /grant:r "Administrators:(OI)(CI)F" | Out-Null
-}
-
-# --- 4. Reset ---
+# --- 3. Reset and print credentials only to the interactive terminal ---
 foreach ($acct in $final) {
     $pw = New-PassPhrase
     if ($PSCmdlet.ShouldProcess($acct.Sam, 'Reset password')) {
@@ -117,14 +108,11 @@ foreach ($acct in $final) {
             Set-ADAccountPassword -Identity $acct.Sam -Reset `
                 -NewPassword (ConvertTo-SecureString $pw -AsPlainText -Force) -ErrorAction Stop
             if ($ForceChangeAtLogon) { Set-ADUser $acct.Sam -ChangePasswordAtLogon $true }
-            "$($acct.Sam), $pw" | Out-File $OutFile -Append -Encoding ascii
-            Write-Host "[ok]   $($acct.Sam)" -ForegroundColor Green
+            Write-Host ('{0},{1}' -f $acct.Sam, $pw)
         } catch {
             Write-Warning "[fail] $($acct.Sam): $($_.Exception.Message)"
         }
     }
 }
 
-if (-not $WhatIfPreference) {
-    Write-Host "`nPasswords saved to $OutFile. Move to your team's password manager, then delete the file." -ForegroundColor Yellow
-}
+Write-Host "`nPasswords were displayed in this terminal only. Do not save or share terminal transcripts." -ForegroundColor Yellow
